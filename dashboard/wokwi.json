@@ -1,0 +1,14 @@
+{
+    "dispositivos": {
+        "esp32_01": {
+            "sensores": {
+                "luminosidade": 0,
+                "mq2": 0,
+                "ocupacao": 0,
+                "presenca": 0,
+                "temperatura": 0,
+                "umidade": 0
+            }
+        }
+    }
+}

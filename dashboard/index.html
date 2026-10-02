@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Sala de Aula Inteligente</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <header>
+        <div>
+            <h1>Sala de Aula Inteligente</h1>
+            <p>ESP32 + Firebase + Sistema Web</p>
+        </div>
+
+        <div class="status-area">
+            <span id="indicador-status"></span>
+            <span id="status-conexao">Conectando ao Firebase...</span>
+        </div>
+    </header>
+
+
+    <main>
+
+        <section class="cards">
+
+            <div class="card">
+                <h2>🌡️ Temperatura</h2>
+
+                <div class="valor">
+                    <span id="temperatura">--</span>
+                    <span class="unidade">°C</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>💡 Luminosidade</h2>
+
+                <div class="valor">
+                    <span id="luminosidade">--</span>
+                    <span class="unidade">lux</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>👥 Ocupação</h2>
+
+                <div class="valor">
+                    <span id="ocupacao">--</span>
+                    <span class="unidade">%</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>💧 Umidade</h2>
+
+                <div class="valor">
+                    <span id="umidade">--</span>
+                    <span class="unidade">%</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Presença</h2>
+
+                <span id="presenca">--</span>
+            </div>
+
+            <div class="card">
+                <h2>Qualidade do Ar</h2>
+
+                <span id="qualidade-ar">--</span>
+            </div>
+
+        </section>
+
+        <section class="conforto">
+            <h2>Índice de Conforto da Sala</h2>
+
+            <span>Porcentagem</span>
+            <span>Estado</span>
+        </section>
+
+        <section class="graficos">
+            <div class="grafico">
+
+            </div>
+
+            <div class="grafico">
+                
+            </div>
+            
+            <div class="grafico">
+                
+            </div>
+            
+            <div class="grafico">
+                
+            </div>
+            
+            <div class="grafico">
+                
+            </div>
+        </section>
+
+        <section class="status-sala">
+            <h2>Status da Sala</h2>
+
+            <section class="status-cards">
+                <div class="status-card">
+                
+                </div>
+
+                <div class="status-card">
+                
+                </div>
+
+                <div class="status-card">
+                
+                </div>
+
+                <div class="status-card">
+                
+                </div>
+
+                <div class="status-card">
+
+                </div>
+
+                <div class="status-card">
+
+                </div>
+            </section>
+
+            <h3>Status Geral: <span>--</span></h3>
+        </section>
+
+        <section class="informacoes">
+
+            <h3>Histórico das últimas 10 atualizações</h3>
+
+            <p id="ultima-atualizacao">
+                Aguardando dados do ESP32...
+            </p>
+
+        </section>
+
+    </main>
+
+
+    <footer>
+        Projeto IoT - ESP32 + Firebase Realtime Database
+    </footer>
+
+
+    <script type="module" src="script.js"></script>
+
+</body>
+
+</html>
