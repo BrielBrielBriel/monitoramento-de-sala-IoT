@@ -100,7 +100,7 @@ void conectarWiFi() {
   int intervalo = 500;
 
   while (WiFi.status() != WL_CONNECTED) {
-    if(ms - msAnterior => intervalo){
+    if(ms - msAnterior >= intervalo){
         Serial.print(".");
         msAnterior = millis();
     }
