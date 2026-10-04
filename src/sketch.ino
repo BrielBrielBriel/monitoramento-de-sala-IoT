@@ -90,18 +90,19 @@ void loop() {
 // ---------------- WIFI ----------------
 
 void conectarWiFi() {
+  
   Serial.print("Conectando ao WiFi");
   
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD, 6);
-  unsigned long temp = millis();
-  unsigned long tempAntigo = 0;
+  unsigned long ms = millis();
+  unsigned long msAnterior = 0;
   int intervalo = 500;
 
   while (WiFi.status() != WL_CONNECTED) {
-    if(temp - tempAntigo => intervalo){
+    if(ms - msAnterior => intervalo){
         Serial.print(".");
-        tempAntigo = millis();
+        msAnterior = millis();
     }
   }
 
