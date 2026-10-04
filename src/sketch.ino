@@ -75,7 +75,7 @@ void setup() {
 
 }
 
-// ---------------- LOOP ----------------
+
 
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
@@ -86,8 +86,6 @@ void loop() {
   enviarDadosParaBanco(CAMINHO_DADOS_SENSORES, jsonDadosSensores(&dados), TENTATIVAS_ENVIO, MS_ENVIO_ENTRE_TENTATIVA);
   delay(5000);
 }
-
-// ---------------- WIFI ----------------
 
 void conectarWiFi() {
   
@@ -164,7 +162,7 @@ void preencherBufferDistancia(unsigned long buffer[], int pinTrig, int pinEcho, 
     if (duracao > 0) {
       buffer[i] = duracao / 58;
     } else {
-      buffer[i] = DISTANCIA_MAX;   // sem eco = sala vazia
+      buffer[i] = DISTANCIA_MAX;   
     }
   }
 }
@@ -219,7 +217,6 @@ void coletarDadosDoAmbiente(DadosAmbiente *dados) {
     dados->ocupacao = 0;
   }
 }
-
 
 String jsonDadosSensores(DadosAmbiente *dados) {
   String json = "{";
