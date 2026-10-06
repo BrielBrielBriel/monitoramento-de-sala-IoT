@@ -1,14 +1,33 @@
 {
-    "dispositivos": {
-        "esp32_01": {
-            "sensores": {
-                "luminosidade": 0,
-                "mq2": 0,
-                "ocupacao": 0,
-                "presenca": 0,
-                "temperatura": 0,
-                "umidade": 0
-            }
-        }
+  "dispositivos": {
+    "esp32_01": {
+      "alertas": {
+        "alerta_ativo": false,
+        "iluminacao": "Iluminação insuficiente!",
+        "mq2": "",
+        "ocupacao": "",
+        "temperatura": "Temperatura elevada!"
+      },
+      "classificacoes": {
+        "classificacao_ics": "MEDIANA",
+        "ics": 50,
+        "luminosidade": "INTENSA",
+        "ocupacao": "BAIXA",
+        "qualidade_do_ar": "NORMAL",
+        "temperatura": "QUENTE"
+      },
+      "historico": {
+        "classificacao_ics": "39.4"
+      },
+      "sensores": {
+        "distancia": 199,
+        "luminosidade": 4063,
+        "mq2": 3628,
+        "ocupacao": 0,
+        "presenca": false,
+        "temperatura": 39.4,
+        "umidade": 0
+      }
     }
+  }
 }

@@ -77,6 +77,14 @@ main {
     margin-bottom: 20px;
 }
 
+#presenca {
+    font-size: 1.5rem;
+}
+
+#mq2 {
+    font-size: 1.5rem;
+}
+
 .valor {
     font-size: 42px;
 
@@ -110,6 +118,20 @@ main {
     color: #666;
 
     margin-bottom: 20px;
+}
+
+#ics-area {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: greenyellow;
+    padding: 20px;
+    border-radius: 12px;
+    margin-top: 20px;
+}
+
+#ics-estado {
+    font-size: 1.5rem;
 }
 
 .graficos {
@@ -149,26 +171,24 @@ main {
 
     border-radius: 12px;
 
-    box-shadow:
-        0 3px 10px rgba(0, 0, 0, 0.08);
-}
-
-.status-sala h3 {
-    margin-top: 20px;
-    padding: 25px;
-    border-radius: 15px;
-    background-color: greenyellow;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
 }
 
 .status-cards {
     margin-top: 30px;
 
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    display: grid;
 
-    gap: 40px;
+    grid-template-columns:
+        repeat(auto-fit, minmax(250px, 1fr));
+
+    gap: 20px;
 }
+
+#status-geral {
+    background-color: greenyellow;
+}
+
 
 .status-card {
     background: rgb(121, 117, 117);
@@ -179,6 +199,13 @@ main {
 
     box-shadow:
         0 3px 10px rgba(0, 0, 0, 0.08);
+
+    display: flex;
+    justify-content: space-between;
+}
+
+.status-card span {
+    font-size: 1.2rem;
 }
 
 .informacoes {
