@@ -17,22 +17,6 @@
 #define INTERVALO_DE_ENVIO 5000
 #define MS_ENVIO_ENTRE_TENTATIVA 1000
 
-enum ClassificacaoTemperatura {
-    FRIA, NORMAL, QUENTE
-};
-
-enum ClassificaoOcupacao {
-   BAIXA, MODERADA, ALTA
-};
-
-enum ClassificacaoIluminacao {
-    INSUFICIENTE, ADEQUADA, INTENSA
-};
-
-enum ClassificacaoICS {
-   REGULAR, BOA, RUIM
-};
-
 typedef struct {
   int distancia;
   float umidade;
@@ -44,17 +28,20 @@ typedef struct {
 } DadosAmbiente;
 
 typedef struct {
-  bool mq2;
-  bool ocupacao;
-  bool iluminacao;
-  bool temperatura;
+  const char* mq2;
+  const char* ocupacao;
+  const char* iluminacao;
+  const char* temperatura;
+  bool alertaAtivo;
 } Alertas;
 
 typedef struct {
-  ClassificacaoTemperatura temperatura;
-  ClassificaoOcupacao ocupacao;
-  ClassificacaoIluminacao iluminacao;
-  ClassificacaoICS classificacaoIcs;
+  const char* temperatura;
+  const char* ocupacao;
+  const char* iluminacao;
+  const char* ar;
+  const char* classificacaoIcs;
+  
   int pontosIcs;
 } Classificacoes;
 
@@ -66,8 +53,10 @@ unsigned long hcsrBuffer[BUFFER_LENGHT] = {0};
 
 const char* WIFI_SSID = "Wokwi-GUEST";
 const char* WIFI_PASSWORD = "";
-const char* CAMINHO_DADOS_SENSORES = "/dispositivos/esp32_01/sensores.json";
 const char* FIREBASE_URL = "https://senai-led-id-default-rtdb.firebaseio.com";
+const char* CAMINHO_DADOS_SENSORES = "/dispositivos/esp32_01/sensores.json";
+const char* CAMINHO_ALERTAS = "/dispositivos/esp32_01/alertas.json";
+const char* CAMINHO_CLASSIFICACOES = "/dispositivos/esp32_01/classificacoes.json";
 char bufferGeral[BUFFER_GERAL_LENGTH] = {};
 char bufferJson[512] = {};
 unsigned long msAnteriorEnvio = 0;
@@ -87,10 +76,15 @@ void coletarDadosDoAmbiente(DadosAmbiente *dados);
 void gerarAvisos(DadosAmbiente *dados, Alertas *alertas);
 void jsonDadosSensores(DadosAmbiente *dados, char buffer[], size_t size);
 void classificar(DadosAmbiente *dados, Classificacoes *classificacoes);
-ClassificacaoIluminacao classificarIluminacao(DadosAmbiente *dados);
-ClassificacaoTemperatura classificarTemperatura(DadosAmbiente *dados);
-ClassificaoOcupacao classificarOcupacao(DadosAmbiente *dados);
-ClassificacaoICS classificarICS(Classificacoes *classificacoes);
+const char* classificarIluminacao(DadosAmbiente *dados);
+const char* classificarTemperatura(DadosAmbiente *dados);
+const char* classificarOcupacao(DadosAmbiente *dados);
+const char* classificarICS(Classificacoes *classificacoes);
+const char* classificarAr(DadosAmbiente *dados);
+void calcularICS(Classificacoes *classificacoes, DadosAmbiente *dados);
+void gerarAlertas(DadosAmbiente *dados, Alertas *alertas);
+void gerarJsonAlertas(Alertas *alertas, char buffer[], size_t size);
+void gerarJsonClassificacao(Classificacoes *classificacoes, char buffer[], size_t size);
 
 // ---------------- SETUP ----------------
 
@@ -113,11 +107,18 @@ void loop() {
   }
   unsigned long ms = millis();
 
-  coletarDadosDoAmbiente(&dados);
-  jsonDadosSensores(&dados, bufferJson, BUFFER_GERAL_LENGTH);
-  if (ms - msAnteriorEnvio >= INTERVALO_DE_ENVIO){
+  if (millis() - msAnteriorEnvio >= INTERVALO_DE_ENVIO){
+    coletarDadosDoAmbiente(&dados);
+    gerarAlertas(&dados, &alertas);
+    classificar(&dados, &classificacoes);
+    jsonDadosSensores(&dados, bufferJson, BUFFER_GERAL_LENGTH);
     enviarDadosParaBanco(CAMINHO_DADOS_SENSORES, bufferJson, TENTATIVAS_ENVIO, MS_ENVIO_ENTRE_TENTATIVA);
-    msAnteriorEnvio = ms;
+    gerarJsonAlertas(&alertas, bufferJson, BUFFER_GERAL_LENGTH);
+    enviarDadosParaBanco(CAMINHO_ALERTAS, bufferJson, TENTATIVAS_ENVIO, MS_ENVIO_ENTRE_TENTATIVA);
+    gerarJsonClassificacao(&classificacoes, bufferJson, BUFFER_GERAL_LENGTH);
+    enviarDadosParaBanco(CAMINHO_CLASSIFICACOES, bufferJson, TENTATIVAS_ENVIO, MS_ENVIO_ENTRE_TENTATIVA);
+
+    msAnteriorEnvio = millis();
   }
 }
 
@@ -255,46 +256,59 @@ void classificar(DadosAmbiente *dados, Classificacoes *classificacoes){
     classificacoes->iluminacao = classificarIluminacao(dados);
     classificacoes->ocupacao = classificarOcupacao(dados);
     classificacoes->classificacaoIcs = classificarICS(classificacoes);
+    classificacoes->ar = classificarAr(dados);
+    calcularICS(classificacoes, dados);
 }
 
-ClassificacaoIluminacao classificarIluminacao(DadosAmbiente *dados){
+const char* classificarIluminacao(DadosAmbiente *dados){
     if (dados->luminosidade < 798){
-      return INSUFICIENTE;
+      return "INSUFICIENTE";
     } else if (dados->luminosidade >= 798 && dados->luminosidade <= 1291){
-      return ADEQUADA;
+      return "ADEQUADA";
     } 
     
-    return INTENSA;
+    return "INTENSA";
 }
 
-ClassificacaoTemperatura classificarTemperatura(DadosAmbiente *dados){
+const char* classificarTemperatura(DadosAmbiente *dados){
     if (dados->temperatura < 18){
-     return FRIA;
+     return "FRIA";
     } else if (dados->temperatura >= 18 && dados->temperatura <= 28){
-      return NORMAL;
-    } 
-    
-    return QUENTE;
+      return "NORMAL";
+
+   } 
+    return "QUENTE";
 }
 
-ClassificaoOcupacao classificarOcupacao(DadosAmbiente *dados){
+const char* classificarOcupacao(DadosAmbiente *dados){
     if (dados->ocupacao >= 0 && dados->ocupacao <= 30){
-        return BAIXA;
+        return "BAIXA";
       } else if (dados->ocupacao >= 31 && dados->ocupacao <= 70){
-        return MODERADA;
+        return "MODERADA";
       } 
-      return ALTA;
+      return "ALTA";
 }
 
-ClassificacaoICS classificarICS(Classificacoes *classificacoes){
+const char* classificarAr(DadosAmbiente *dados){
+  if (dados->qualidadeDoAr < 3665){
+    return "NORMAL";
+  } else if (dados->qualidadeDoAr >= 3665 && dados->qualidadeDoAr <= 3762){
+    return "REGULAR";
+  } 
+  
+  return "RUIM";
+  
+}
+const char* classificarICS(Classificacoes *classificacoes){
     if (classificacoes->pontosIcs < 50){
-      return RUIM;
+      return "RUIM";
     } else if (classificacoes->pontosIcs >= 50 && classificacoes->pontosIcs <= 74){
-      return REGULAR;
+      return "MEDIANA";
     }
     
-    return BOA;
+    return "BOA";
 }
+
 
 void jsonDadosSensores(DadosAmbiente *dados, char buffer[], size_t size) {
     snprintf(buffer, size,
@@ -307,4 +321,69 @@ void jsonDadosSensores(DadosAmbiente *dados, char buffer[], size_t size) {
       dados->ocupacao,
       dados->qualidadeDoAr
     );
+}
+
+void calcularICS(Classificacoes *classificacoes, DadosAmbiente *dados){
+  int t = (dados->temperatura >= 18 && dados->temperatura <= 28) ? 100 : 20;
+  int l = (dados->luminosidade >= 798 && dados->luminosidade <= 1291) ? 100 : 20;
+  int a = 0;
+  int u = 0;
+  int o = dados->ocupacao;
+
+  if (dados->umidade >= 40 && dados->umidade <= 65){
+    u = 100;
+  } else if (dados->umidade >= 66 && dados->umidade <= 70){
+    u = 70;
+  } else {
+    u = 10;
+  } if (dados->qualidadeDoAr < 3665){
+    a = 100;
+  } else if (dados->qualidadeDoAr >= 3665 && dados->qualidadeDoAr <= 3762){
+    a = 50;
+  } else {
+    a = 10;
+  }
+
+  classificacoes->pontosIcs = (t + u + l + a + (100 - o)) / 5;
+
+}
+
+void gerarAlertas(DadosAmbiente *dados, Alertas *alertas){
+  if (dados->luminosidade > 1291){
+    alertas->iluminacao = "Iluminação insuficiente!";
+  } else {
+    alertas->iluminacao = "\0";
+  } if (dados->qualidadeDoAr > 3762){
+    alertas->mq2 = "Nível de gases elevado!";
+  } else {
+    alertas->mq2 = "\0";
+  } if (dados->temperatura > 34){
+    alertas->temperatura = "Temperatura elevada!";
+  } else {
+    alertas->temperatura = "\0";
+  } if (dados->ocupacao > 90){
+    alertas->ocupacao = "Ocupação elevada!";
+  } else {
+    alertas->ocupacao = "\0";
+  }
+}
+
+void gerarJsonAlertas(Alertas *alertas, char buffer[], size_t size){
+  snprintf(buffer, size, "{\"iluminacao\":\"%s\",\"mq2\":\"%s\",\"ocupacao\":\"%s\",\"temperatura\":\"%s\",\"alerta_ativo\":%s}", 
+    alertas->iluminacao,
+    alertas->mq2, 
+    alertas->ocupacao, 
+    alertas->temperatura,
+    alertas->alertaAtivo ? "true" : "false"
+  );
+}
+void gerarJsonClassificacao(Classificacoes *classificacoes, char buffer[], size_t size){
+    snprintf(buffer, size, "{\"classificacao_ics\":\"%s\",\"ics\":%d,\"luminosidade\":\"%s\",\"ocupacao\":\"%s\",\"qualidade_do_ar\":\"%s\",\"temperatura\":\"%s\"}", 
+    classificacoes->classificacaoIcs,
+    classificacoes->pontosIcs, 
+    classificacoes->iluminacao,
+    classificacoes->ocupacao,
+    classificacoes->ar,
+    classificacoes->temperatura
+  );
 }
