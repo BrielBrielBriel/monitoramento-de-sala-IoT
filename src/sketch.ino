@@ -4,21 +4,26 @@
 #include "DHTesp.h"
 #include <time.h>
 
-#define DHT_PIN 15
-#define PIR_PIN 17
-#define HCSR_PIN_TRIG 5
-#define HCSR_PIN_ECHO 19
-#define LDR_PIN 34
-#define MQ2_PIN 35
-#define BUFFER_LENGHT 5
-#define BUFFER_GERAL_LENGTH 512
-#define DISTANCIA_MAX 400
-#define DISTANCIA_MIN 50
-#define TENTATIVAS_ENVIO 5
-#define INTERVALO_DE_ENVIO 5000
-#define MS_ENVIO_ENTRE_TENTATIVA 1000
-#define FUSO_HORARIO_SEG (-3 * 3600)
-#define NTP_TIMEOUT_MS 10000
+// MACROS E DEFINIÇÕES DE PINOS
+#define PINO_DHT 15
+#define PINO_PIR 17
+#define PINO_HCSR_TRIG 5
+#define PINO_HCSR_ECHO 19
+#define PINO_LDR 34
+#define PINO_MQ2 35
+
+// PARÂMETROS DE FUNCIONAMENTO
+#define TAM_BUFFER_DISTANCIA 5
+#define TAM_BUFFER_GERAL 1024
+#define DISTANCIA_MAXIMA 400
+#define DISTANCIA_MINIMA 50
+#define MAX_TENTATIVAS_ENVIO 5
+#define INTERVALO_DE_ENVIO_MS 5000
+#define ATRASO_ENTRE_TENTATIVAS_MS 1000
+#define FUSO_HORARIO_SEGUNDOS (-3 * 3600)
+#define TEMPO_LIMITE_NTP_MS 10000
+
+// ESTRUTURAS DE DADOS (TYPES)
 
 typedef struct {
   int distancia;
@@ -55,20 +60,9 @@ typedef struct {
   int hora;
   int minutos;
   int segundos;
-} Data_E_Hora;
+} DataHora;
 
-DadosAmbiente dados = {};
-Alertas alertas = {};
-Classificacoes classificacoes = {};
-Data_E_Hora dataHoraAtual = {};
-
-int indexHistTemp = 0;
-int indexHistUmid = 0;
-int indexHistLum = 0;
-int indexHistOcup = 0;
-int indexHistPresenca = 0;
-
-unsigned long hcsrBuffer[BUFFER_LENGHT] = {0};
+// CONSTANTES GLOBAIS 
 
 const char* WIFI_SSID = "Wokwi-GUEST";
 const char* WIFI_PASSWORD = "";
@@ -76,7 +70,8 @@ const char* FIREBASE_URL = "https://senai-led-id-default-rtdb.firebaseio.com";
 const char* NTP_SERVIDOR_1 = "pool.ntp.org";
 const char* NTP_SERVIDOR_2 = "time.nist.gov";
 
-const char* CAMINHO_DADOS_SENSORES = "/dispositivos/esp32_01/sensores.json";
+// Caminhos do banco de dados
+const char* CAMINHO_DADOS = "/dispositivos/esp32_01.json"; // CORRIGIDO: Adicionado ponto e vírgula ausente
 const char* CAMINHO_ALERTAS = "/dispositivos/esp32_01/alertas.json";
 const char* CAMINHO_CLASSIFICACOES = "/dispositivos/esp32_01/classificacoes.json";
 const char* CAMINHO_HIST_TEMP = "/dispositivos/esp32_01/historico_temp.json";
@@ -85,61 +80,91 @@ const char* CAMINHO_HIST_LUM = "/dispositivos/esp32_01/historico_lum.json";
 const char* CAMINHO_HIST_OCUP = "/dispositivos/esp32_01/historico_ocup.json";
 const char* CAMINHO_HIST_PRESENCA = "/dispositivos/esp32_01/historico_presenca.json";
 
+// Formatos JSON para o histórico
 const char* HIST_TEMP_FORMAT     = "{\"t%d\":{\"timestamp\":{\".sv\":\"timestamp\"},\"valor\":%s}}";
 const char* HIST_UMID_FORMAT     = "{\"u%d\":{\"timestamp\":{\".sv\":\"timestamp\"},\"valor\":%s}}";
 const char* HIST_LUM_FORMAT      = "{\"l%d\":{\"timestamp\":{\".sv\":\"timestamp\"},\"valor\":%s}}";
 const char* HIST_OCUP_FORMAT     = "{\"o%d\":{\"timestamp\":{\".sv\":\"timestamp\"},\"valor\":%s}}";
 const char* HIST_PRESENCA_FORMAT = "{\"p%d\":{\"timestamp\":{\".sv\":\"timestamp\"},\"valor\":%s}}";
 
-char bufferGeral[BUFFER_GERAL_LENGTH] = {};
-char bufferJson[512] = {};
-unsigned long msAnteriorEnvio = 0;
+// VARIÁVEIS GLOBAIS
+DadosAmbiente dadosAmbiente = {};
+Alertas alertas = {};
+Classificacoes classificacoes = {};
+DataHora dataHoraAtual = {};
+
+int indiceHistTemp = 0;
+int indiceHistUmid = 0;
+int indiceHistLum = 0;
+int indiceHistOcup = 0;
+int indiceHistPresenca = 0;
+
+unsigned long bufferDistancia[TAM_BUFFER_DISTANCIA] = {0};
+char bufferRequisicao[TAM_BUFFER_GERAL] = {};
+char bufferDadosJson[1024] = {}; // Ajustado para 1024 conforme calculado
+unsigned long tempoUltimoEnvio = 0;
+
 DHTesp dht;
 WiFiClientSecure client;
 
+// PROTÓTIPOS DAS FUNÇÕES
+
 void conectarWiFi();
-void enviarDadosParaBanco(const char *caminho, char json[], int tentativas, int msEntreTentativas, int (*httpMetodoEnvio) (HTTPClient*, char*));
+void enviarDadosParaBanco(const char *caminho, char json[], int tentativas, int msEntreTentativas, int (*metodoHttp) (HTTPClient*, char*));
 int httpPut(HTTPClient *http, char json[]);
 int httpPatch(HTTPClient *http, char json[]);
-unsigned long mediana(unsigned long buffer[], size_t size);
-void preencherBufferDistancia(unsigned long buffer[], int pinTrig, int pinEcho, int repeticoes);
-unsigned long lerHCSR04(int pinTrig, int pinEcho);
+
+// Leitura de Sensores e Tratamento
+unsigned long calcularMediana(unsigned long buffer[], size_t tamanho);
+void preencherBufferDistancia(unsigned long buffer[], int pinoTrig, int pinoEcho, int repeticoes);
+unsigned long lerHCSR04(int pinoTrig, int pinoEcho);
 void lerDHT(DadosAmbiente *dados);
-bool lerPIR(int pirPin);
-int lerSensorMQ2(int mq2Pin);
-int lerSensorLDR(int ldrPin);
+bool lerPIR(int pinoPir);
+int lerSensorMQ2(int pinoMq2);
+int lerSensorLDR(int pinoLdr);
 void coletarDadosDoAmbiente(DadosAmbiente *dados);
-void gerarAvisos(DadosAmbiente *dados, Alertas *alertas);
-void jsonDadosSensores(DadosAmbiente *dados, char buffer[], size_t size);
+
+// Classificações e alertas
 void classificar(DadosAmbiente *dados, Classificacoes *classificacoes);
 const char* classificarIluminacao(DadosAmbiente *dados);
 const char* classificarTemperatura(DadosAmbiente *dados);
 const char* classificarUmidade(DadosAmbiente *dados);
 const char* classificarOcupacao(DadosAmbiente *dados);
-const char* classificarICS(Classificacoes *classificacoes);
 const char* classificarAr(DadosAmbiente *dados);
+const char* classificarICS(Classificacoes *classificacoes);
 void calcularICS(Classificacoes *classificacoes, DadosAmbiente *dados);
 void gerarAlertas(DadosAmbiente *dados, Alertas *alertas);
-void gerarJsonAlertas(Alertas *alertas, char buffer[], size_t size);
-void gerarJsonClassificacao(Classificacoes *classificacoes, char buffer[], size_t size);
-void gerarJsonHistorico(int *index, void* valor, char buffer[], size_t size, void (*voidToX) (void*, char*, size_t), const char* histFormat);
-void voidToFloat(void *p, char *buffer, size_t size);
-void voidToInt(void *p, char *buffer, size_t size);
-void voidToBool(void *p, char *buffer, size_t size);
-void voidToString(void *p, char *buffer, size_t size);
-void imprimirSerial(Data_E_Hora *dataHora, DadosAmbiente *dados, Classificacoes *classificacoes, Alertas *alertas);
-bool atualizarDataHora(Data_E_Hora *dataHora);
+
+// Formatação JSON
+void gerarJson(DadosAmbiente *dados, Alertas *alertas, Classificacoes *classificacoes, char *buffer, size_t tamanho);
+void jsonDadosSensores(DadosAmbiente *dados, char buffer[], size_t tamanho);
+void gerarJsonAlertas(Alertas *alertas, char buffer[], size_t tamanho);
+void gerarJsonClassificacao(Classificacoes *classificacoes, char buffer[], size_t tamanho);
+void gerarJsonHistorico(int *indice, void* valor, char buffer[], size_t tamanho, void (*funcaoFormatacao) (void*, char*, size_t), const char* formatoHist);
+
+// Conversores Genéricos
+void formatarFloat(void *ponteiro, char *buffer, size_t tamanho);
+void formatarInt(void *ponteiro, char *buffer, size_t tamanho);
+void formatarBool(void *ponteiro, char *buffer, size_t tamanho);
+void formatarString(void *ponteiro, char *buffer, size_t tamanho);
+
+// Utilitários de Relógio e Debug
+void imprimirSerial(DataHora *dataHora, DadosAmbiente *dados, Classificacoes *classificacoes, Alertas *alertas);
+bool atualizarDataHora(DataHora *dataHora);
 void sincronizarHorario();
+
 
 void setup() {
   Serial.begin(115200);
-  pinMode(HCSR_PIN_TRIG, OUTPUT);
-  pinMode(HCSR_PIN_ECHO, INPUT);
-  pinMode(PIR_PIN, INPUT);
-  pinMode(LDR_PIN, INPUT);
-  pinMode(MQ2_PIN, INPUT);
-  digitalWrite(HCSR_PIN_TRIG, LOW);
-  dht.setup(DHT_PIN, DHTesp::DHT22);
+  
+  pinMode(PINO_HCSR_TRIG, OUTPUT);
+  pinMode(PINO_HCSR_ECHO, INPUT);
+  pinMode(PINO_PIR, INPUT);
+  pinMode(PINO_LDR, INPUT);
+  pinMode(PINO_MQ2, INPUT);
+  digitalWrite(PINO_HCSR_TRIG, LOW);
+  
+  dht.setup(PINO_DHT, DHTesp::DHT22);
   conectarWiFi();
   client.setInsecure();
   sincronizarHorario();
@@ -150,40 +175,34 @@ void loop() {
     conectarWiFi();
   }
 
-  if (millis() - msAnteriorEnvio >= INTERVALO_DE_ENVIO){
-    coletarDadosDoAmbiente(&dados);
-    gerarAlertas(&dados, &alertas);
-    classificar(&dados, &classificacoes);
+  if (millis() - tempoUltimoEnvio >= INTERVALO_DE_ENVIO_MS) {
+    
+    coletarDadosDoAmbiente(&dadosAmbiente);
+    gerarAlertas(&dadosAmbiente, &alertas);
+    classificar(&dadosAmbiente, &classificacoes);
     atualizarDataHora(&dataHoraAtual);
-    imprimirSerial(&dataHoraAtual, &dados, &classificacoes, &alertas);
+    imprimirSerial(&dataHoraAtual, &dadosAmbiente, &classificacoes, &alertas);
 
-    jsonDadosSensores(&dados, bufferJson, BUFFER_GERAL_LENGTH);
-    enviarDadosParaBanco(CAMINHO_DADOS_SENSORES, bufferJson, TENTATIVAS_ENVIO, MS_ENVIO_ENTRE_TENTATIVA, httpPut);
+    gerarJson(&dadosAmbiente, &alertas, &classificacoes, bufferDadosJson, TAM_BUFFER_GERAL);
+    enviarDadosParaBanco(CAMINHO_DADOS, bufferDadosJson, MAX_TENTATIVAS_ENVIO, ATRASO_ENTRE_TENTATIVAS_MS, httpPatch);
 
-    gerarJsonClassificacao(&classificacoes, bufferJson, BUFFER_GERAL_LENGTH);
-    enviarDadosParaBanco(CAMINHO_CLASSIFICACOES, bufferJson, TENTATIVAS_ENVIO, MS_ENVIO_ENTRE_TENTATIVA, httpPut);
+    gerarJsonHistorico(&indiceHistTemp, &dadosAmbiente.temperatura, bufferDadosJson, TAM_BUFFER_GERAL, formatarFloat, HIST_TEMP_FORMAT);
+    enviarDadosParaBanco(CAMINHO_HIST_TEMP, bufferDadosJson, MAX_TENTATIVAS_ENVIO, ATRASO_ENTRE_TENTATIVAS_MS, httpPatch);
 
-    gerarJsonAlertas(&alertas, bufferJson, BUFFER_GERAL_LENGTH);
-    enviarDadosParaBanco(CAMINHO_ALERTAS, bufferJson, TENTATIVAS_ENVIO, MS_ENVIO_ENTRE_TENTATIVA, httpPut);
+    gerarJsonHistorico(&indiceHistOcup, &dadosAmbiente.ocupacao, bufferDadosJson, TAM_BUFFER_GERAL, formatarInt, HIST_OCUP_FORMAT);
+    enviarDadosParaBanco(CAMINHO_HIST_OCUP, bufferDadosJson, MAX_TENTATIVAS_ENVIO, ATRASO_ENTRE_TENTATIVAS_MS, httpPatch);
 
-    gerarJsonHistorico(&indexHistTemp, &dados.temperatura, bufferJson, BUFFER_GERAL_LENGTH, voidToFloat, HIST_TEMP_FORMAT);
-    enviarDadosParaBanco(CAMINHO_HIST_TEMP, bufferJson, TENTATIVAS_ENVIO, MS_ENVIO_ENTRE_TENTATIVA, httpPatch);
+    gerarJsonHistorico(&indiceHistUmid, &dadosAmbiente.umidade, bufferDadosJson, TAM_BUFFER_GERAL, formatarFloat, HIST_UMID_FORMAT);
+    enviarDadosParaBanco(CAMINHO_HIST_UMID, bufferDadosJson, MAX_TENTATIVAS_ENVIO, ATRASO_ENTRE_TENTATIVAS_MS, httpPatch);
 
-    gerarJsonHistorico(&indexHistOcup, &dados.ocupacao, bufferJson, BUFFER_GERAL_LENGTH, voidToInt, HIST_OCUP_FORMAT);
-    enviarDadosParaBanco(CAMINHO_HIST_OCUP, bufferJson, TENTATIVAS_ENVIO, MS_ENVIO_ENTRE_TENTATIVA, httpPatch);
+    gerarJsonHistorico(&indiceHistLum, &dadosAmbiente.luminosidade, bufferDadosJson, TAM_BUFFER_GERAL, formatarInt, HIST_LUM_FORMAT);
+    enviarDadosParaBanco(CAMINHO_HIST_LUM, bufferDadosJson, MAX_TENTATIVAS_ENVIO, ATRASO_ENTRE_TENTATIVAS_MS, httpPatch);
 
-    gerarJsonHistorico(&indexHistUmid, &dados.umidade, bufferJson, BUFFER_GERAL_LENGTH, voidToFloat, HIST_UMID_FORMAT);
-    enviarDadosParaBanco(CAMINHO_HIST_UMID, bufferJson, TENTATIVAS_ENVIO, MS_ENVIO_ENTRE_TENTATIVA, httpPatch);
-
-    gerarJsonHistorico(&indexHistLum, &dados.luminosidade, bufferJson, BUFFER_GERAL_LENGTH, voidToInt, HIST_LUM_FORMAT);
-    enviarDadosParaBanco(CAMINHO_HIST_LUM, bufferJson, TENTATIVAS_ENVIO, MS_ENVIO_ENTRE_TENTATIVA, httpPatch);
-
-    gerarJsonHistorico(&indexHistPresenca, &dados.presenca, bufferJson, BUFFER_GERAL_LENGTH, voidToBool, HIST_PRESENCA_FORMAT);
-    enviarDadosParaBanco(CAMINHO_HIST_PRESENCA, bufferJson, TENTATIVAS_ENVIO, MS_ENVIO_ENTRE_TENTATIVA, httpPatch);
-
-    msAnteriorEnvio = millis();
-  }
+    tempoUltimoEnvio = millis();
+  } 
 }
+
+// IMPLEMENTAÇÃO DAS FUNÇÕES
 
 void conectarWiFi() {
   Serial.print("Conectando ao WiFi");
@@ -207,27 +226,27 @@ void conectarWiFi() {
   Serial.println(WiFi.localIP());
 }
 
-void enviarDadosParaBanco(const char *caminho, char json[], int tentativas, int msEntreTentativas, int (*httpMetodoEnvio) (HTTPClient*, char*)) {
-  snprintf(bufferGeral, BUFFER_GERAL_LENGTH, "%s%s", FIREBASE_URL, caminho);
+void enviarDadosParaBanco(const char *caminho, char json[], int tentativas, int msEntreTentativas, int (*metodoHttp) (HTTPClient*, char*)) {
+  snprintf(bufferRequisicao, TAM_BUFFER_GERAL, "%s%s", FIREBASE_URL, caminho);
   HTTPClient http;
-  int codigo;
+  int codigoStatus;
   http.setConnectTimeout(10000);
   http.setTimeout(10000);
 
   for(int i = 1; i <= tentativas; i++){
-    http.begin(client, bufferGeral);
+    http.begin(client, bufferRequisicao);
     http.addHeader("Content-Type", "application/json");
-    codigo = httpMetodoEnvio(&http, json);
+    codigoStatus = metodoHttp(&http, json);
     http.end();
 
-    if (codigo >= 200 && codigo < 300) {
+    if (codigoStatus >= 200 && codigoStatus < 300) {
       Serial.println("\nDados enviados:");
       Serial.println(json);
       return;
     }
 
     Serial.print("Erro ao enviar dados. HTTP: ");
-    Serial.println(codigo);
+    Serial.println(codigoStatus);
     client.stop();
 
     if(i < tentativas) delay(msEntreTentativas);
@@ -242,45 +261,45 @@ int httpPatch(HTTPClient *http, char json[]){
   return http->PATCH(json);
 }
 
-unsigned long mediana(unsigned long buffer[], size_t size) {
-  unsigned long value = 0;
+unsigned long calcularMediana(unsigned long buffer[], size_t tamanho) {
+  unsigned long valor = 0;
 
-  for (size_t i = 1; i < size; i++) {
-    value = buffer[i];
+  for (size_t i = 1; i < tamanho; i++) {
+    valor = buffer[i];
     for (int x = i - 1; x >= 0; x--) {
-      if (value < buffer[x]) {
+      if (valor < buffer[x]) {
         buffer[x + 1] = buffer[x];
-        buffer[x] = value;
+        buffer[x] = valor;
       }
     }
   }
 
-  return buffer[size / 2];
+  return buffer[tamanho / 2];
 }
 
-void preencherBufferDistancia(unsigned long buffer[], int pinTrig, int pinEcho, int repeticoes) {
+void preencherBufferDistancia(unsigned long buffer[], int pinoTrig, int pinoEcho, int repeticoes) {
   unsigned long duracao = 0;
 
   for (int i = 0; i < repeticoes; i++) {
-    duracao = lerHCSR04(pinTrig, pinEcho);
+    duracao = lerHCSR04(pinoTrig, pinoEcho);
     delay(60);
 
     if (duracao > 0) {
       buffer[i] = duracao / 58;
     } else {
-      buffer[i] = DISTANCIA_MAX;
+      buffer[i] = DISTANCIA_MAXIMA;
     }
   }
 }
 
-unsigned long lerHCSR04(int pinTrig, int pinEcho) {
-  digitalWrite(pinTrig, LOW);
+unsigned long lerHCSR04(int pinoTrig, int pinoEcho) {
+  digitalWrite(pinoTrig, LOW);
   delayMicroseconds(2);
-  digitalWrite(pinTrig, HIGH);
+  digitalWrite(pinoTrig, HIGH);
   delayMicroseconds(10);
-  digitalWrite(pinTrig, LOW);
+  digitalWrite(pinoTrig, LOW);
 
-  return pulseIn(pinEcho, HIGH, 30000);
+  return pulseIn(pinoEcho, HIGH, 30000);
 }
 
 void lerDHT(DadosAmbiente *dados) {
@@ -295,28 +314,28 @@ void lerDHT(DadosAmbiente *dados) {
   dados->umidade = temperaturaeUmidade.humidity;
 }
 
-bool lerPIR(int pirPin) {
-  return digitalRead(pirPin);
+bool lerPIR(int pinoPir) {
+  return digitalRead(pinoPir);
 }
 
-int lerSensorMQ2(int mq2Pin) {
-  return analogRead(mq2Pin);
+int lerSensorMQ2(int pinoMq2) {
+  return analogRead(pinoMq2);
 }
 
-int lerSensorLDR(int ldrPin) {
-  return analogRead(ldrPin);
+int lerSensorLDR(int pinoLdr) {
+  return analogRead(pinoLdr);
 }
 
 void coletarDadosDoAmbiente(DadosAmbiente *dados) {
   lerDHT(dados);
-  preencherBufferDistancia(hcsrBuffer, HCSR_PIN_TRIG, HCSR_PIN_ECHO, BUFFER_LENGHT);
-  dados->presenca = lerPIR(PIR_PIN);
-  dados->distancia = mediana(hcsrBuffer, BUFFER_LENGHT);
-  dados->qualidadeDoAr = lerSensorMQ2(MQ2_PIN);
-  dados->luminosidade = lerSensorLDR(LDR_PIN);
+  preencherBufferDistancia(bufferDistancia, PINO_HCSR_TRIG, PINO_HCSR_ECHO, TAM_BUFFER_DISTANCIA);
+  dados->presenca = lerPIR(PINO_PIR);
+  dados->distancia = calcularMediana(bufferDistancia, TAM_BUFFER_DISTANCIA);
+  dados->qualidadeDoAr = lerSensorMQ2(PINO_MQ2);
+  dados->luminosidade = lerSensorLDR(PINO_LDR);
 
   if (dados->presenca) {
-    dados->ocupacao = constrain(map(dados->distancia, DISTANCIA_MAX, DISTANCIA_MIN, 0, 100), 0, 100);
+    dados->ocupacao = constrain(map(dados->distancia, DISTANCIA_MAXIMA, DISTANCIA_MINIMA, 0, 100), 0, 100);
   } else {
     dados->ocupacao = 0;
   }
@@ -327,9 +346,9 @@ void classificar(DadosAmbiente *dados, Classificacoes *classificacoes){
   classificacoes->umidade = classificarUmidade(dados);
   classificacoes->iluminacao = classificarIluminacao(dados);
   classificacoes->ocupacao = classificarOcupacao(dados);
-  classificacoes->classificacaoIcs = classificarICS(classificacoes);
   classificacoes->ar = classificarAr(dados);
   calcularICS(classificacoes, dados);
+  classificacoes->classificacaoIcs = classificarICS(classificacoes); 
 }
 
 const char* classificarIluminacao(DadosAmbiente *dados){
@@ -338,7 +357,6 @@ const char* classificarIluminacao(DadosAmbiente *dados){
   } else if (dados->luminosidade >= 798 && dados->luminosidade <= 1291){
     return "ADEQUADA";
   }
-
   return "INTENSA";
 }
 
@@ -357,7 +375,6 @@ const char* classificarUmidade(DadosAmbiente *dados){
   } else if (dados->umidade >= 40 && dados->umidade <= 65){
     return "MEDIA";
   }
-
   return "ALTA";
 }
 
@@ -376,7 +393,6 @@ const char* classificarAr(DadosAmbiente *dados){
   } else if (dados->qualidadeDoAr >= 3665 && dados->qualidadeDoAr <= 3762){
     return "REGULAR";
   }
-
   return "RUIM";
 }
 
@@ -386,21 +402,7 @@ const char* classificarICS(Classificacoes *classificacoes){
   } else if (classificacoes->pontosIcs >= 50 && classificacoes->pontosIcs <= 74){
     return "MEDIANA";
   }
-
   return "BOA";
-}
-
-void jsonDadosSensores(DadosAmbiente *dados, char buffer[], size_t size) {
-  snprintf(buffer, size,
-    "{\"temperatura\":%.1f,\"umidade\":%.1f,\"luminosidade\":%d,\"presenca\":%s,\"distancia\":%d,\"ocupacao\":%d,\"mq2\":%d}",
-    dados->temperatura,
-    dados->umidade,
-    dados->luminosidade,
-    dados->presenca ? "true" : "false",
-    dados->distancia,
-    dados->ocupacao,
-    dados->qualidadeDoAr
-  );
 }
 
 void calcularICS(Classificacoes *classificacoes, DadosAmbiente *dados){
@@ -461,8 +463,39 @@ void gerarAlertas(DadosAmbiente *dados, Alertas *alertas){
   }
 }
 
-void gerarJsonAlertas(Alertas *alertas, char buffer[], size_t size){
-  snprintf(buffer, size, "{\"iluminacao\":\"%s\",\"mq2\":\"%s\",\"ocupacao\":\"%s\",\"temperatura\":\"%s\",\"alerta_ativo\":%s}",
+// Implementação correta da função geradora do JSON mestre
+void gerarJson(DadosAmbiente *dados, Alertas *alertas, Classificacoes *classificacoes, char *buffer, size_t tamanho){
+  snprintf(buffer, tamanho, 
+        "{"
+            "\"sensores\":{\"temperatura\":%.1f,\"umidade\":%.1f,\"luminosidade\":%d,\"presenca\":%s,\"distancia\":%d,\"ocupacao\":%d,\"mq2\":%d},"
+            "\"classificacoes\":{\"classificacao_ics\":\"%s\",\"ics\":%d,\"luminosidade\":\"%s\",\"ocupacao\":\"%s\",\"qualidade_do_ar\":\"%s\",\"temperatura\":\"%s\",\"umidade\":\"%s\"},"
+            "\"alertas\":{\"iluminacao\":\"%s\",\"mq2\":\"%s\",\"ocupacao\":\"%s\",\"temperatura\":\"%s\",\"alerta_ativo\":%s}"
+        "}",
+        dados->temperatura, dados->umidade, dados->luminosidade,
+        dados->presenca ? "true" : "false", dados->distancia, 
+        dados->ocupacao, dados->qualidadeDoAr,
+        classificacoes->classificacaoIcs, classificacoes->pontosIcs, classificacoes->iluminacao,
+        classificacoes->ocupacao, classificacoes->ar, classificacoes->temperatura, classificacoes->umidade,
+        alertas->iluminacao, alertas->mq2, alertas->ocupacao, alertas->temperatura,
+        alertas->alertaAtivo ? "true" : "false"
+    );
+}
+
+void jsonDadosSensores(DadosAmbiente *dados, char buffer[], size_t tamanho) {
+  snprintf(buffer, tamanho,
+    "{\"temperatura\":%.1f,\"umidade\":%.1f,\"luminosidade\":%d,\"presenca\":%s,\"distancia\":%d,\"ocupacao\":%d,\"mq2\":%d}",
+    dados->temperatura,
+    dados->umidade,
+    dados->luminosidade,
+    dados->presenca ? "true" : "false",
+    dados->distancia,
+    dados->ocupacao,
+    dados->qualidadeDoAr
+  );
+}
+
+void gerarJsonAlertas(Alertas *alertas, char buffer[], size_t tamanho){
+  snprintf(buffer, tamanho, "{\"iluminacao\":\"%s\",\"mq2\":\"%s\",\"ocupacao\":\"%s\",\"temperatura\":\"%s\",\"alerta_ativo\":%s}",
     alertas->iluminacao,
     alertas->mq2,
     alertas->ocupacao,
@@ -471,8 +504,8 @@ void gerarJsonAlertas(Alertas *alertas, char buffer[], size_t size){
   );
 }
 
-void gerarJsonClassificacao(Classificacoes *classificacoes, char buffer[], size_t size){
-  snprintf(buffer, size, "{\"classificacao_ics\":\"%s\",\"ics\":%d,\"luminosidade\":\"%s\",\"ocupacao\":\"%s\",\"qualidade_do_ar\":\"%s\",\"temperatura\":\"%s\",\"umidade\":\"%s\"}",
+void gerarJsonClassificacao(Classificacoes *classificacoes, char buffer[], size_t tamanho){
+  snprintf(buffer, tamanho, "{\"classificacao_ics\":\"%s\",\"ics\":%d,\"luminosidade\":\"%s\",\"ocupacao\":\"%s\",\"qualidade_do_ar\":\"%s\",\"temperatura\":\"%s\",\"umidade\":\"%s\"}",
     classificacoes->classificacaoIcs,
     classificacoes->pontosIcs,
     classificacoes->iluminacao,
@@ -483,35 +516,35 @@ void gerarJsonClassificacao(Classificacoes *classificacoes, char buffer[], size_
   );
 }
 
-void gerarJsonHistorico(int *index, void* valor, char buffer[], size_t size, void (*voidToX) (void*, char*, size_t), const char *histFormat){
+void gerarJsonHistorico(int *indice, void* valor, char buffer[], size_t tamanho, void (*funcaoFormatacao) (void*, char*, size_t), const char *formatoHist){
   char valorBuffer[10] = "";
 
-  voidToX(valor, valorBuffer, sizeof(valorBuffer));
+  funcaoFormatacao(valor, valorBuffer, sizeof(valorBuffer));
 
-  *index = (*index < 10) ? *index : 0;
+  *indice = (*indice < 10) ? *indice : 0;
 
-  snprintf(buffer, size, histFormat, *index, valorBuffer);
+  snprintf(buffer, tamanho, formatoHist, *indice, valorBuffer);
 
-  (*index)++;
+  (*indice)++;
 }
 
-void voidToFloat(void *p, char *buffer, size_t size){
-  snprintf(buffer, size, "%.1f", *(float*) p);
+void formatarFloat(void *ponteiro, char *buffer, size_t tamanho){
+  snprintf(buffer, tamanho, "%.1f", *(float*) ponteiro);
 }
 
-void voidToInt(void *p, char *buffer, size_t size){
-  snprintf(buffer, size, "%d", *(int*) p);
+void formatarInt(void *ponteiro, char *buffer, size_t tamanho){
+  snprintf(buffer, tamanho, "%d", *(int*) ponteiro);
 }
 
-void voidToBool(void *p, char *buffer, size_t size){
-  snprintf(buffer, size, "%s", *(bool*) p ? "true" : "false");
+void formatarBool(void *ponteiro, char *buffer, size_t tamanho){
+  snprintf(buffer, tamanho, "%s", *(bool*) ponteiro ? "true" : "false");
 }
 
-void voidToString(void *p, char *buffer, size_t size){
-  snprintf(buffer, size, "%s", (char*) p);
+void formatarString(void *ponteiro, char *buffer, size_t tamanho){
+  snprintf(buffer, tamanho, "%s", (char*) ponteiro);
 }
 
-void imprimirSerial(Data_E_Hora *dataHora, DadosAmbiente *dados, Classificacoes *classificacoes, Alertas *alertas){
+void imprimirSerial(DataHora *dataHora, DadosAmbiente *dados, Classificacoes *classificacoes, Alertas *alertas){
   Serial.println("==================================================");
   Serial.println("          SALA DE AULA INTELIGENTE");
   Serial.println("==================================================");
@@ -561,13 +594,13 @@ void imprimirSerial(Data_E_Hora *dataHora, DadosAmbiente *dados, Classificacoes 
   if (alertas->mq2 && alertas->mq2[0] != '\0') Serial.printf("⚠ ALERTA: %s\n", alertas->mq2);
 }
 
-bool atualizarDataHora(Data_E_Hora *dataHora){
+bool atualizarDataHora(DataHora *dataHora){
   time_t agora = time(NULL);
   struct tm info;
   localtime_r(&agora, &info);
 
   if (info.tm_year < (2016 - 1900)){
-    return false;
+    return false; 
   }
 
   dataHora->dia = info.tm_mday;
@@ -581,7 +614,7 @@ bool atualizarDataHora(Data_E_Hora *dataHora){
 }
 
 void sincronizarHorario(){
-  configTime(FUSO_HORARIO_SEG, 0, NTP_SERVIDOR_1, NTP_SERVIDOR_2);
+  configTime(FUSO_HORARIO_SEGUNDOS, 0, NTP_SERVIDOR_1, NTP_SERVIDOR_2);
 
   Serial.print("Sincronizando horario (NTP)");
 
@@ -590,7 +623,7 @@ void sincronizarHorario(){
   unsigned long msAnterior = 0;
   int intervalo = 500;
 
-  while (!atualizarDataHora(&dataHoraAtual) && (millis() - inicio) < NTP_TIMEOUT_MS) {
+  while (!atualizarDataHora(&dataHoraAtual) && (millis() - inicio) < TEMPO_LIMITE_NTP_MS) {
     ms = millis();
     if(ms - msAnterior >= (unsigned long)intervalo){
         Serial.print(".");

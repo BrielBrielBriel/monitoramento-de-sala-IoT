@@ -318,13 +318,20 @@ const historicoUmidadeRef = ref (
     "dispositivos/esp32_01/historico_umidade"
 );
 
+const historicoPresencaRef = ref (
+    database,
+    "dispositivos/esp32_01/historico_presenca"
+);
+
+
 const max_grafico = 10;
 
 const dados_graficos = {
     temperatura: [],
     luminosidade: [],
     ocupacao: [],
-    umidade: []
+    umidade: [],
+    presenca: []
 };
 
 //MONITORAMENTOS
@@ -365,6 +372,15 @@ onValue(historicoUmidadeRef, (snapshot) => {
         return;
     }
     carregarEntradas("umidade", dados);
+});
+
+// PRESENÇA
+onValue(historicoPresencaRef, (snapshot) => {
+    const dados = snapshot.val();
+    if (!dados) {
+        return;
+    }
+    carregarEntradas("presenca", dados);
 });
 
 function carregarEntradas(nome, dados) {
