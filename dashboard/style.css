@@ -292,7 +292,7 @@ th {
 
 .grafico .charts-css.column.show-labels:not(.reverse):not(.reverse-labels) tbody tr th {
     display: block;
-    margin-block-end: calc(-1 * var(--labels-size) - var(--primary-axis-width) - 0.5em);
+    margin-block-end: calc(-1 * var(--labels-size) - var(--primary-axis-width) - 1.1em);
 }
 
 tbody {

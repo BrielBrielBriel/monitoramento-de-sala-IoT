@@ -415,7 +415,7 @@ function obterUnidade(tipo) {
         return "C°";
     
     if(tipo === "luminosidade") {
-        return "lux;"
+        return "lux";
     }
 
     if(tipo === "ocupacao" || tipo === "umidade") {
@@ -446,7 +446,7 @@ function renderGrafico(elemento, dados, tipo) {
 
     tbody.innerHTML = dados.map(item => {
         const tamanho = maiorValor > 0 ? item.valor / maiorValor: 0;
-        let valor = item.valor === 0 ? " " : item.valor + unidade;
+        let valor = item.valor < 0 ? " " : item.valor + unidade;
         return `
             <tr>
                 <th scope="row">${item.timestamp}</th>
@@ -464,7 +464,7 @@ function renderGrafico(elemento, dados, tipo) {
 // ATUALIZAR PRA SUPORTAR TEMPERATURA NEGATIVA?
 
 function atualizarMetricas(elemento, valores) {
-    let valoresFitrados = valores.filter(num => num > 0);
+    let valoresFitrados = valores.filter(num => num >= 0);
 
     let maximo = Math.max(...valoresFitrados);
     let minimo = Math.min(...valoresFitrados);
