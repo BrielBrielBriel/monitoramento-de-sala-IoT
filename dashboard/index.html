@@ -8,6 +8,7 @@
     <title>Sala de Aula Inteligente</title>
 
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/charts.css/dist/charts.min.css">
 </head>
 
 <body>
@@ -98,29 +99,7 @@
             </div>
         </section>
 
-        <section class="graficos">
-            <div class="grafico">
-
-            </div>
-
-            <div class="grafico">
-                
-            </div>
-            
-            <div class="grafico">
-                
-            </div>
-            
-            <div class="grafico">
-                
-            </div>
-            
-            <div class="grafico">
-                
-            </div>
-        </section>
-
-        <section class="status-sala">
+         <section class="status-sala">
             <h2>Status da Sala</h2>
             
             <section class="status-cards">
@@ -163,26 +142,161 @@
 
         </section>
 
-        <section class="informacoes">
+        <section class="graficos">
+            <div class="grafico" id="grafico-temperatura">
+                <h2>Temperatura</h2>
+                <table class="charts-css column show-labels show-primary-axis data-spacing-10" >
+                    <thead>
+                        <tr>
+                            <th scope="col">Temperatura</th>
+                            <th scope="col">Medicoes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="loading">
+                            <th scope="row">- - -</th>
+                        </tr>
+                    </tbody>
 
-            <h3>Histórico das últimas 10 atualizações</h3>
+                </table>
 
-            <p id="ultima-atualizacao">
-                Aguardando dados do ESP32...
-            </p>
+                <div class="metricas">
+                    <div class="metrica">
+                        <p id="media">Média: -.- </p>
+                    </div>
+                    <div class="metrica">
+                        <p id="minimo">Mínimo: -.-</p>
+                    </div>
+                    <div class="metrica">
+                        <p id="maximo">Máximo: -.-</p>
+                    </div>
+                </div>
+            
+            </div>
 
+            <div class="grafico" data-grafico="luminosidade">
+                <h2>Luminosidade</h2>
+                <table class="charts-css column show-labels show-primary-axis data-spacing-10">
+                    <thead>
+                        <tr>
+                            <th scope="col">Luminosidade</th>
+                            <th scope="col">Medicoes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="loading">
+                            <th scope="row">- - -</th>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="metricas">
+                    <div class="metrica">
+                        <p id="media">Média: -.- </p>
+                    </div>
+                    <div class="metrica">
+                        <p id="minimo">Mínimo: -.-</p>
+                    </div>
+                    <div class="metrica">
+                        <p id="maximo">Máximo: -.-</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grafico" data-grafico="ocupacao">
+                <h2>Ocupação</h2>
+                <table class="charts-css column show-labels show-primary-axis data-spacing-10">
+                    <thead>
+                        <tr>
+                            <th scope="col">Ocupacao</th>
+                            <th scope="col">Medicoes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="loading">
+                            <th scope="row">- - -</th>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="metricas">
+                    <div class="metrica">
+                        <p id="media">Média: -.- </p>
+                    </div>
+                    <div class="metrica">
+                        <p id="minimo">Mínimo: -.-</p>
+                    </div>
+                    <div class="metrica">
+                        <p id="maximo">Máximo: -.-</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grafico" data-grafico="umidade">
+                <h2>Umidade</h2>
+                <table class="charts-css column show-labels show-primary-axis data-spacing-10">
+                    <thead>
+                        <tr>
+                            <th scope="col">Umidade</th>
+                            <th scope="col">Medicoes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="loading">
+                            <th scope="row">- - -</th>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="metricas">
+                    <div class="metrica">
+                        <p id="media">Média: -.- </p>
+                    </div>
+                    <div class="metrica">
+                        <p id="minimo">Mínimo: -.-</p>
+                    </div>
+                    <div class="metrica">
+                        <p id="maximo">Máximo: -.-</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grafico" data-grafico="presenca">
+                <h2>Presença</h2>
+                <table class="charts-css column show-labels show-primary-axis data-spacing-10">
+                    <thead>
+                        <tr>
+                            <th scope="col">Presenca</th>
+                            <th scope="col">Medicoes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="loading">
+                            <th scope="row">- - -</th>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <div class="metricas">
+                    <div class="metrica">
+                        <p id="media">Média: -.- </p>
+                    </div>
+                    <div class="metrica">
+                        <p id="minimo">Mínimo: -.-</p>
+                    </div>
+                    <div class="metrica">
+                        <p id="maximo">Máximo: -.-</p>
+                    </div>
+                </div>
+            </div>
         </section>
 
+       
     </main>
-
 
     <footer>
         Projeto IoT - ESP32 + Firebase Realtime Database
     </footer>
-
-
     <script type="module" src="script.js"></script>
-
 </body>
-
 </html>

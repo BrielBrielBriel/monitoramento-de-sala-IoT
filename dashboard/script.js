@@ -65,6 +65,8 @@ const statusGeral = document.getElementById("status");
 
 let statusGeralFundo = document.getElementById("status-geral");
 
+let statusConexao = document.getElementById("status-conexao");
+let indicadorStatus = document.getElementById("indicador-status");
 // -----------------------------------------------------
 // MONITORA CONEXÃO COM FIREBASE
 // -----------------------------------------------------
@@ -293,3 +295,175 @@ onValue(
         }
     }
 );
+
+// RELACIONADO AO GRÁFICO
+
+const historicoTempRef = ref (
+    database,
+    "dispositivos/esp32_01/historico_temp"
+);
+
+const historicoLumRef = ref (
+    database,
+    "dispositivos/esp32_01/historico_lum"
+);
+
+const historicoOcupRef = ref (
+    database,
+    "dispositivos/esp32_01/historico_ocup"
+);
+
+const historicoUmidadeRef = ref (
+    database,
+    "dispositivos/esp32_01/historico_umidade"
+);
+
+const historicoPresencaRef = ref (
+    database,
+    "dispositivos/esp32_01/historico_presenca"
+);
+
+
+const max_grafico = 10;
+
+const dados_graficos = {
+    temperatura: [],
+    luminosidade: [],
+    ocupacao: [],
+    umidade: [],
+    presenca: []
+};
+
+//MONITORAMENTOS
+// TEMPERATURA
+
+onValue(historicoTempRef, (snapshot) => {
+    const dados = snapshot.val();
+    if (!dados) {
+        return;
+    }
+    carregarEntradas("temperatura", dados);
+});
+
+
+// LUMINOSIDADE
+onValue(historicoLumRef, (snapshot) => {
+    const dados = snapshot.val();
+    if (!dados) {
+        return;
+    }
+    carregarEntradas("luminosidade", dados);
+});
+
+// OCUPACAO
+onValue(historicoOcupRef, (snapshot) => {
+    const dados = snapshot.val();
+    if (!dados) {
+        return;
+    }
+    carregarEntradas("ocupacao", dados);
+});
+
+// UMIDADE
+onValue(historicoUmidadeRef, (snapshot) => {
+    const dados = snapshot.val();
+    if (!dados) {
+        return;
+    }
+    carregarEntradas("umidade", dados);
+});
+
+// PRESENÇA
+onValue(historicoPresencaRef, (snapshot) => {
+    const dados = snapshot.val();
+    if (!dados) {
+        return;
+    }
+    carregarEntradas("presenca", dados);
+});
+
+function carregarEntradas(nome, dados) {
+    const ultimasEntradas = obterUltimasEntradas(dados, max_grafico); 
+    dados_graficos[nome] = mapearEntradas(ultimasEntradas);
+    pesquisarRenderizarGraficoDe(nome);
+}
+
+function pesquisarRenderizarGraficoDe(nome) {
+    let grafico = document.querySelector("#grafico-" + nome);
+    renderGrafico(grafico, dados_graficos[nome]);
+}
+
+function obterUltimasEntradas(dados, quantidade) {
+    return Object.values(dados)
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .slice(-quantidade);
+}
+
+function mapearEntradas(entradas) {
+    return entradas.map(item => ({
+        horario: item.horario === undefined ? "--:--" : item.horario,
+        valor: item.valor === undefined ? 0 : item.valor
+    }));
+}
+
+/*
+dados_graficos.temperatura[0].horario = "13:23";
+dados_graficos.temperatura[0].valor = 27;
+
+dados_graficos.temperatura[1].horario = "14:23";
+dados_graficos.temperatura[1].valor = 28;
+
+dados_graficos.temperatura[2].horario = "15:23";
+dados_graficos.temperatura[2].valor = 26;
+
+dados_graficos.temperatura[3].horario = "16:23";
+dados_graficos.temperatura[3].valor = 24;
+
+dados_graficos.temperatura[4].horario = "17:23";
+dados_graficos.temperatura[4].valor = 22;
+*/
+
+
+
+function renderGrafico(elemento, dados) {
+    console.log(dados);
+    
+    const tbody = elemento.querySelector("tbody");
+
+    const valores = dados.map(item => item.valor);
+
+    const maiorValor = Math.max(...valores);
+
+    tbody.innerHTML = dados.map(item => {
+
+        const tamanho = maiorValor > 0 ? item.valor / maiorValor: 0;
+        let valor = item.valor === 0 ? " " : item.valor;
+        return `
+            <tr>
+                <th scope="row">${item.horario}</th>
+                <td style="--size: ${tamanho}; padding-top: 5px;">
+                    ${valor}
+                </td>
+            </tr>
+        `;
+
+    }).join("");
+
+    atualizarMetricas(valores);
+}
+
+// TEM QUE ATUALIZAR PRA SUPORTAR TEMPERATURA NEGATIVA
+
+function atualizarMetricas(valores) {
+    let maior = Math.max(...valores);
+    let menor = Math.min(...valores);
+
+    const quantidade = valores.filter(num => num > 0).length;
+    let total = valores.reduce((acc, num) => acc + num, 0);
+
+    const media = total / quantidade;
+
+    console.log(maior);
+    console.log(menor);
+    console.log(media);
+}
