@@ -472,7 +472,7 @@ function atualizarMetricas(elemento, valores) {
     const quantidade = valoresFitrados.length;
     let total = valoresFitrados.reduce((acc, num) => acc + num, 0);
 
-    const media = total / quantidade;
+    const media = Number((total / quantidade).toFixed(2));
     atualizarInterfaceMetricas(elemento, maximo, minimo, media)
 }
 
