@@ -339,6 +339,7 @@ const dados_graficos = {
 
 onValue(historicoTempRef, (snapshot) => {
     const dados = snapshot.val();
+    console.log(dados);
     if (!dados) {
         return;
     }
@@ -390,19 +391,21 @@ function carregarEntradas(nome, dados) {
 
 function pesquisarRenderizarGraficoDe(nome) {
     let grafico = document.querySelector("#grafico-" + nome);
-    renderGrafico(grafico, dados_graficos[nome]);
+    renderGrafico(grafico, dados_graficos[nome], nome);
 }
 
 function obterUltimasEntradas(dados, quantidade) {
-    return Object.values(dados)
+    const ultimas = Object.values(dados)
         .sort((a, b) => a.timestamp - b.timestamp)
         .slice(-quantidade);
+
+    return Array.from({ length: quantidade }, (_, i) => ultimas[i]);
 }
 
 function mapearEntradas(entradas) {
     return entradas.map(item => ({
-        horario: item.horario === undefined ? "--:--" : item.horario,
-        valor: item.valor === undefined ? 0 : item.valor
+        timestamp: item?.timestamp === undefined ? "---" : formatarTimestamp(item.timestamp),
+        valor: item?.valor === undefined ? 0 : item.valor
     }));
 }
 
@@ -423,11 +426,34 @@ dados_graficos.temperatura[4].horario = "17:23";
 dados_graficos.temperatura[4].valor = 22;
 */
 
-
-
-function renderGrafico(elemento, dados) {
-    console.log(dados);
+function obterUnidade(tipo) {
+    if(tipo === "temperatura") 
+        return "C°";
     
+    if(tipo === "luminosidade") {
+        return "lux;"
+    }
+
+    if(tipo === "ocupacao" || tipo === "umidade") {
+        return "%";
+    }
+}
+
+function formatarTimestamp(timestamp) {
+    const data = new Date(timestamp);
+    const dia = String(data.getDate()).padStart(2, "0");
+    const mes = String(data.getMonth() + 1).padStart(2, "0");
+    const horas = String(data.getHours()).padStart(2, "0");
+    const minutos = String(data.getMinutes()).padStart(2, "0");
+
+    return `${dia}/${mes} ${horas}:${minutos}`;
+}
+
+function renderGrafico(elemento, dados, tipo) {
+    console.log(dados)
+
+    const unidade = obterUnidade(tipo);
+
     const tbody = elemento.querySelector("tbody");
 
     const valores = dados.map(item => item.valor);
@@ -435,12 +461,11 @@ function renderGrafico(elemento, dados) {
     const maiorValor = Math.max(...valores);
 
     tbody.innerHTML = dados.map(item => {
-
         const tamanho = maiorValor > 0 ? item.valor / maiorValor: 0;
-        let valor = item.valor === 0 ? " " : item.valor;
+        let valor = item.valor === 0 ? " " : item.valor + unidade;
         return `
             <tr>
-                <th scope="row">${item.horario}</th>
+                <th scope="row">${item.timestamp}</th>
                 <td style="--size: ${tamanho}; padding-top: 5px;">
                     ${valor}
                 </td>
@@ -449,21 +474,26 @@ function renderGrafico(elemento, dados) {
 
     }).join("");
 
-    atualizarMetricas(valores);
+    atualizarMetricas(elemento, valores);
 }
 
-// TEM QUE ATUALIZAR PRA SUPORTAR TEMPERATURA NEGATIVA
+// ATUALIZAR PRA SUPORTAR TEMPERATURA NEGATIVA?
 
-function atualizarMetricas(valores) {
-    let maior = Math.max(...valores);
-    let menor = Math.min(...valores);
+function atualizarMetricas(elemento, valores) {
+    let valoresFitrados = valores.filter(num => num > 0);
 
-    const quantidade = valores.filter(num => num > 0).length;
-    let total = valores.reduce((acc, num) => acc + num, 0);
+    let maximo = Math.max(...valoresFitrados);
+    let minimo = Math.min(...valoresFitrados);
+
+    const quantidade = valoresFitrados.length;
+    let total = valoresFitrados.reduce((acc, num) => acc + num, 0);
 
     const media = total / quantidade;
+    atualizarInterfaceMetricas(elemento, maximo, minimo, media)
+}
 
-    console.log(maior);
-    console.log(menor);
-    console.log(media);
+function atualizarInterfaceMetricas(elemento, maximo, minimo, media) {
+    elemento.querySelector("#media").innerText = "Média: " + media;
+    elemento.querySelector("#minimo").innerText = "Mínimo: " + minimo;
+    elemento.querySelector("#maximo").innerText = "Máximo: " + maximo;
 }

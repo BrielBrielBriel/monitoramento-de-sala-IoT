@@ -239,12 +239,60 @@ footer {
 
 /* RELACIONADO AO GRAFICO */
 
+#grafico-temperatura {
+    --cor: #fdba74;
+}
+
+#grafico-umidade {
+    --cor: #93c5fd;
+}
+
+#grafico-presenca {
+    --cor: #86efac;
+}
+
+#grafico-luminosidade {
+    --cor: #fde68a;
+}
+
+#grafico-ocupacao {
+    --cor: #c4b5fd;
+}
+
+.grafico .charts-css {
+    --color: var(--cor);
+}
+
+.grafico h2 {
+    border-bottom-color: var(--cor);
+}
+
+.grafico .charts-css {
+    --primary-axis-color: #94a3b8;
+    --secondary-axes-color: #e2e8f0;
+    --labels-size: 2.5em;
+}
+
 td {
-    min-height: 10px;
-    border-top-left-radius: 10px;
+    min-width: 10px;
     border-top-right-radius: 10px;
-    padding-top: 10px;
-    font-family: 'Courier New', Courier, monospace;
+    border-top-left-radius: 10px;
+    font-family: Arial, Helvetica, sans-serif; 
+    font-size: clamp(5px, 1.5vw, 16px);
+    font-weight: 600;
+    color: #1e293b; 
+}
+
+th {
+    font-size: clamp(5px, 1.3vw, 14px);
+    font-weight: 400;     
+    color: #64748b; 
+    justify-content: flex-start;
+}
+
+.grafico .charts-css.column.show-labels:not(.reverse):not(.reverse-labels) tbody tr th {
+    display: block;
+    margin-block-end: calc(-1 * var(--labels-size) - var(--primary-axis-width) - 0.5em);
 }
 
 tbody {
@@ -255,14 +303,13 @@ tbody {
     font-family: Arial, Helvetica, sans-serif;
 }
 
-
 .grafico {
     background-color: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 10px;
     padding: 20px;
     width: 100%;
-    box-shadow:0 3px 10px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
     box-sizing: border-box;
 }
 
@@ -278,19 +325,34 @@ tbody {
 
 .grafico .charts-css {
     width: 100%;
-    height: 15rem; 
-    margin: 0 auto;
+    height: 20rem;
+    margin: 0 auto 1.5rem;
 }
 
 .metricas {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     margin-top: 1.5rem;
-    gap: 20px;
+    gap: 0.5rem;
 }
 
 .metrica {
-    border: 1px solid rgba(0, 0, 0, 0.26);
-    padding: 0.4rem;
+    border: 1px solid #e2e8f0; 
+    background-color: #f8fafc; 
+    padding: 0.4rem 0.8rem;
     border-radius: 10px;
+}
+
+.metrica p {
+    margin: 0;                 
+    font-size: 0.9rem;
+    color: #334155;
+}
+
+@media (max-width: 600px) {
+    .grafico .charts-css.column.show-labels:not(.reverse):not(.reverse-labels) tbody tr th {
+        white-space: normal;
+        text-align: center;
+        font-size: clamp(9px, 2.8vw, 12px);
+    }
 }
